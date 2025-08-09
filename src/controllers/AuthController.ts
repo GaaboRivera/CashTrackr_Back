@@ -3,6 +3,7 @@ import User from '../models/User';
 import { checkPassword, hashPassword } from '../utils/auth';
 import { generateToken } from '../utils/token';
 import { AuthEmail } from '../emails/AuthEmail';
+import { generateJWT } from '../utils/jwt';
 
 export class AuthController {
   static createAccount = async (req: Request, res: Response) => {
@@ -72,7 +73,7 @@ export class AuthController {
 
     if (!user) {
       const error = new Error('Usuario no encontrado');
-      return res.status(409).json(error.message);
+      return res.status(404).json(error.message);
     }
 
     if (!user.confirmed) {
@@ -87,6 +88,70 @@ export class AuthController {
       return res.status(401).json(error.message);
     }
 
-    res.json(isPasswordCorrect);
+    const token = generateJWT(user.id);
+
+    res.json(token);
+  };
+
+  static forgotPassword = async (req: Request, res: Response) => {
+    const { email } = req.body;
+    //Revisar que el usuario exista
+    const user = await User.findOne({
+      where: {
+        email,
+      },
+    });
+
+    if (!user) {
+      const error = new Error('Usuario no encontrado');
+      return res.status(404).json(error.message);
+    }
+
+    user.token = generateToken();
+    await user.save();
+
+    await AuthEmail.sendPasswordResetToken({
+      name: user.name,
+      email: user.email,
+      token: user.token,
+    });
+
+    res.json('Revisa tu email para instrucciones');
+  };
+
+  static validateToken = async (req: Request, res: Response) => {
+    const { token } = req.body;
+
+    const tokenExists = await User.findOne({ where: { token } });
+
+    if (!tokenExists) {
+      const error = new Error('Token no válido');
+      return res.status(404).json(error.message);
+    }
+
+    res.json('Token correcto...');
+  };
+
+  static resetPasswordWithToken = async (req: Request, res: Response) => {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    const user = await User.findOne({
+      where: {
+        token,
+      },
+    });
+
+    if (!user) {
+      const error = new Error('Token no válido');
+      return res.status(409).json(error.message);
+    }
+
+    user.password = await hashPassword(password);
+    user.token = null;
+
+    await user.save();
+
+    res.json('El password se modificó correctamente');
   };
 }
