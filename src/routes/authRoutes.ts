@@ -86,4 +86,27 @@ router.post(
 //*user
 router.get('/user', autenticate, AuthController.getUser);
 
+//*update-password
+router.post(
+  '/update-password',
+  autenticate,
+  body('currentPassword')
+    .notEmpty()
+    .withMessage('El password actual no puede ir vacio'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('El password nuevo es muy corto, mínimo 8 caracteres'),
+  handleInputErrors,
+  AuthController.updateCurrentUserPassword,
+);
+
+//*check-password
+router.post(
+  '/check-password',
+  autenticate,
+  body('password').notEmpty().withMessage('El password no puede ir vacio'),
+  handleInputErrors,
+  AuthController.checkPassword,
+);
+
 export default router;
