@@ -154,4 +154,8 @@ export class AuthController {
 
     res.json('El password se modificó correctamente');
   };
+
+  static getUser = async (req: Request, res: Response) => {
+    res.json(req.user);
+  };
 }
